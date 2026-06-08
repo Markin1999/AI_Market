@@ -1,0 +1,71 @@
+# ───────────────────────── Segreti ─────────────────────────
+config/.env
+.env
+*.env
+!.env.example
+
+# ──────────────────── Virtual environment ──────────────────
+.venv/
+venv/
+env/
+ENV/
+
+# ─────────────── Database e dati (pesanti, generati) ────────
+data/raw/*.duckdb
+data/raw/*.db
+data/raw/*.wal
+data/raw/*.duckdb.wal
+data/raw/*.tmp
+data/processed/*.parquet
+data/processed/*.csv
+data/processed/*.feather
+# Mantieni le cartelle vuote nel repo
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+
+# ──────────── Modelli RL addestrati (pesanti) ──────────────
+models/*.pt
+models/*.pth
+models/*.pkl
+models/*.zip
+models/*.onnx
+!models/.gitkeep
+
+# ───────────────────────── Python ──────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# ─────────────────── Cache strumenti dev ───────────────────
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# ───────────────────── Jupyter notebook ────────────────────
+.ipynb_checkpoints/
+
+# ─────────────────────────── Logs ──────────────────────────
+logs/*.log
+*.log
+
+# ──────────────────────── IDE / editor ─────────────────────
+.idea/
+.claude/settings.local.json
+
+# ─────────────────────────── macOS ─────────────────────────
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# ─────────── File temporanei di Word/Office (~$...) ─────────
+~$*.docx
+~$*.xlsx
+~$*.pptx
