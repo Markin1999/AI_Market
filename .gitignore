@@ -1,4 +1,5 @@
 # ───────────────────────── Segreti ─────────────────────────
+shared/config/.env
 config/.env
 .env
 *.env
@@ -19,6 +20,9 @@ data/raw/*.tmp
 data/processed/*.parquet
 data/processed/*.csv
 data/processed/*.feather
+# Backup database (pesanti)
+data/raw/*.backup_*
+data/raw/*.duckdb.backup*
 # Mantieni le cartelle vuote nel repo
 !data/raw/.gitkeep
 !data/processed/.gitkeep
@@ -69,3 +73,5 @@ logs/*.log
 ~$*.docx
 ~$*.xlsx
 ~$*.pptx
+
+.claude

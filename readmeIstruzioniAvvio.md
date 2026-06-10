@@ -1,138 +1,111 @@
 # 🚀 Istruzioni di avvio — AI Market Predictor
 
-Guida pratica per avviare il progetto e usare gli strumenti già pronti.
-Tutti i comandi vanno eseguiti dalla cartella principale del progetto:
+Guida **operativa**: solo i comandi per avviare e usare il progetto.
+Per sapere *cosa contiene ogni cartella* → [readme_Istruzioni_cartelle.md](readme_Istruzioni_cartelle.md).
 
-```bash
-cd /Users/marcofilannino/Desktop/ai_market_predictor
-```
-
----
-
-## ⚡ Avvio rapido (vedere subito i grafici)
-
-```bash
-cd /Users/marcofilannino/Desktop/ai_market_predictor
-source .venv/bin/activate
-python scripts/viz/dashboard.py
-```
-
-Poi apri il browser su **http://127.0.0.1:8050**
-Per fermare la dashboard: premi **Ctrl + C** nel terminale.
+> ⚠️ **Lancia sempre i comandi dalla cartella principale**, altrimenti gli script non trovano `shared/` e `data/`:
+> ```bash
+> cd /Users/marcofilannino/Desktop/ai_market_predictor
+> ```
 
 ---
 
-## 1. Attivare l'ambiente Python
-
-Prima di lanciare qualsiasi script, attiva il virtual environment (le librerie sono installate lì dentro):
+## ⚡ Avvio rapido — la dashboard
 
 ```bash
 source .venv/bin/activate
+python dashboard/app.py
 ```
+→ apri **http://127.0.0.1:8050** · ferma con **Ctrl + C**.
 
-Quando è attivo, vedi `(.venv)` all'inizio della riga del terminale.
-Per uscire: `deactivate`.
-
-> In alternativa, senza attivare, puoi sempre usare il percorso diretto:
-> `.venv/bin/python scripts/...`
+Tab disponibili: 📈 Grafico (candele + RSI/MACD/EMA/Bollinger) · 🟩 Heatmap settoriale · 📊 Settori nel tempo · 💾 Database.
+Architettura della dashboard → [dashboard/README.md](dashboard/README.md).
 
 ---
 
-## 2. Avviare la dashboard
+## 🐍 Ambiente Python
 
 ```bash
-python scripts/viz/dashboard.py
+source .venv/bin/activate     # attiva — vedi "(.venv)" nel prompt
+deactivate                    # esci
 ```
-
-Apri **http://127.0.0.1:8050**. Quattro tab:
-
-| Tab | Cosa mostra |
-|---|---|
-| 📈 Grafico | Candlestick + Volume + RSI + MACD per ogni titolo, con EMA e Bollinger. Riquadro "Cosa sto guardando?" con le spiegazioni |
-| 🟩 Heatmap settoriale | I 66 titoli colorati per performance (verde = su, rosso = giù) |
-| 📊 Settori nel tempo | Crescita % di ogni settore, da 6 mesi a 5 anni |
-| 💾 Database | Candele e copertura per ogni ticker |
-
-La dashboard aggrega le candele in base al periodo (15 min → settimanali) per restare fluida anche su 5 anni.
+Senza attivare puoi usare il percorso diretto: `.venv/bin/python data_pipeline/...`
 
 ---
 
-## 3. Eseguire gli script
+## 🧰 Comandi della pipeline dati
 
-Sempre con l'ambiente attivo (`source .venv/bin/activate`):
+Con l'ambiente attivo:
 
-| Cosa | Comando | Quando serve |
+| Comando | Cosa fa | Quando |
 |---|---|---|
-| Verifica connessione Polygon | `python scripts/setup/verify_connection.py` | Prima di scaricare |
-| Scarica storico (una tantum, ~8h) | `python scripts/data/download_history.py` | Già fatto — non rifare |
-| Scarica dati macro FRED | `python scripts/data/download_macro.py` | Se mancano/aggiornare |
-| Assembla dataset di training | `python scripts/data/build_dataset.py` | Dopo modifiche ai dati |
-| Controllo qualità base | `python scripts/data/verify_quality.py` | Controllo dati |
-| Controllo qualità approfondito | `python scripts/data/deep_check.py` | Controllo dati |
-| Pulizia dati META | `python scripts/data/fix_meta.py` | Solo dopo aver ri-scaricato META |
+| `python data_pipeline/verify_connection.py` | Verifica la API key Polygon | Prima di scaricare |
+| `python data_pipeline/download_history.py` | Scarica lo storico 15 min (~8h) | Già fatto — non rifare |
+| `python data_pipeline/download_macro.py` | Scarica i dati macro FRED | Per aggiornare |
+| `python data_pipeline/recalculate_indicators.py` | Ricalcola tutti gli indicatori sul DB | Dopo modifiche a `calculate.py` |
+| `python data_pipeline/build_dataset.py` | Assembla `dataset.parquet` | Dopo modifiche ai dati |
+| `python data_pipeline/verify_quality.py` | Controllo qualità base | Controllo dati |
+| `python data_pipeline/deep_check.py` | Controllo qualità approfondito | Controllo dati |
+| `python data_pipeline/fix_meta.py` | Pulizia dati META | Solo dopo aver ri-scaricato META |
+| `python data_pipeline/restore_from_parquet.py AAPL NVDA` | Ripristina ticker dal parquet | Recupero d'emergenza |
 
-> ⚠️ Dopo aver ri-scaricato META, esegui sempre `fix_meta.py` e poi `build_dataset.py` (vedi spiegazione nel README principale).
+> ⚠️ **Polygon serve solo ~2 anni di storico.** Non ri-scaricare ticker che hanno già i 5 anni completi nel DB — perderesti 3 anni. Lo storico esistente è insostituibile.
+>
+> ⚠️ Dopo aver ri-scaricato META: prima `fix_meta.py`, poi `build_dataset.py`.
 
 ---
 
-## 4. Esplorare il database
+## 🔍 Esplorare il database
 
-Apri `DuckDB.session.sql` in VS Code con l'estensione **SQLTools + DuckDB driver**, posizionati su una query e premi **Cmd + Enter**.
+**VS Code:** apri `DuckDB.session.sql` (estensione *SQLTools + DuckDB driver*), poi `Cmd + Enter` su una query.
 
-Oppure da terminale:
+**Terminale:**
 ```bash
 python -c "import duckdb; print(duckdb.connect('data/raw/market.duckdb', read_only=True).execute('SELECT COUNT(*) FROM candles').fetchone())"
 ```
 
 ---
 
-## 5. Setup da zero (su un nuovo computer)
+## 🆕 Setup da zero (nuovo computer)
 
 ```bash
-# 1. Crea il virtual environment e installa le librerie di base
-bash scripts/setup/install.sh
-
-# 2. Attiva l'ambiente
+brew install ta-lib                                   # serve per i pattern candele
+bash data_pipeline/install.sh                         # crea .venv + librerie base
 source .venv/bin/activate
-
-# 3. Installa le librerie aggiuntive della dashboard e dei dati
-pip install dash-bootstrap-components pyarrow
-
-# 4. Crea il file config/.env con le tue API key:
-#    POLYGON_API_KEY=la_tua_key      (https://polygon.io)
-#    FRED_API_KEY=la_tua_key         (https://fred.stlouisfed.org/docs/api/api_key.html)
-
-# 5. Verifica la connessione
-python scripts/setup/verify_connection.py
+pip install dash-bootstrap-components pyarrow TA-Lib   # librerie extra
 ```
+Poi crea il file `shared/config/.env` con le tue API key:
+```
+POLYGON_API_KEY=la_tua_key      # https://polygon.io
+FRED_API_KEY=la_tua_key         # https://fred.stlouisfed.org/docs/api/api_key.html
+```
+E verifica: `python data_pipeline/verify_connection.py`
 
-> Il database `data/raw/market.duckdb` e il dataset `data/processed/dataset.parquet` **non sono su GitHub** (troppo pesanti). Su un nuovo computer vanno rigenerati con `download_history.py` → `download_macro.py` → `build_dataset.py`, oppure copiati a mano.
+> `data/raw/market.duckdb` e `data/processed/dataset.parquet` **non sono su GitHub** (pesanti). Vanno copiati a mano, oppure rigenerati: `download_history.py` → `download_macro.py` → `build_dataset.py`.
 
 ---
 
-## 6. Risoluzione problemi
+## 🛠️ Risoluzione problemi
 
-**`source .venv/bin/activate` o `python` non funzionano**
-Il virtual environment potrebbe essere danneggiato (capita se la cartella viene duplicata nel Finder). La soluzione più semplice è ricrearlo:
+**`ModuleNotFoundError: 'shared'` o `'data_pipeline'`** → stai lanciando dalla cartella sbagliata. Torna nella root del progetto e rilancia.
+
+**`ModuleNotFoundError` su una libreria (dash, pyarrow…)** → ambiente non attivo: `source .venv/bin/activate`.
+
+**`source .venv/bin/activate` non funziona** → venv danneggiato. Ricrealo:
 ```bash
-rm -rf .venv
-bash scripts/setup/install.sh
-source .venv/bin/activate
-pip install dash-bootstrap-components pyarrow
+rm -rf .venv && bash data_pipeline/install.sh
+source .venv/bin/activate && pip install dash-bootstrap-components pyarrow TA-Lib
 ```
 
-**`Address already in use` / porta 8050 occupata**
-La dashboard è già in esecuzione in un altro terminale. Chiudila, oppure libera la porta:
+**`Address already in use` / porta 8050 occupata** → la dashboard è già aperta. Liberala:
 ```bash
 lsof -ti:8050 | xargs kill -9
 ```
 
-**`ModuleNotFoundError`**
-Hai dimenticato di attivare l'ambiente. Esegui `source .venv/bin/activate` e riprova.
+**`IO Error: Could not set lock ... market.duckdb`** → un altro processo (di solito la dashboard) tiene aperto il DB. Chiudilo prima di lanciare script che scrivono.
 
-**La dashboard si apre ma i grafici sono vuoti**
-Verifica che il database esista: `ls -lh data/raw/market.duckdb`. Se manca, vanno riscaricati i dati (vedi punto 5).
+**Dashboard aperta ma grafici vuoti** → database mancante. Controlla con `ls -lh data/raw/market.duckdb`; se manca, rigenera i dati.
 
 ---
 
-*AI Market Predictor — Fase 1 completata. Per i dettagli del progetto vedi [README.md](README.md).*
+*Fase 1 completata · Fase 2 in corso. Dettagli progetto → [README.md](README.md) · Mappa cartelle → [readme_Istruzioni_cartelle.md](readme_Istruzioni_cartelle.md).*

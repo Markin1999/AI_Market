@@ -24,57 +24,64 @@ Sistema di trading algoritmico basato su Reinforcement Learning (RL) per i merca
 
 ## Struttura del progetto
 
+Il progetto è diviso in **due mondi separati** (pipeline dati e addestramento) che condividono un **core comune** e gli **artefatti dati**.
+
 ```
 ai_market_predictor/
 │
-├── config/                         # Configurazione globale
-│   ├── .env                        # API key Polygon + FRED (NON committare)
-│   ├── settings.py                 # Parametri centralizzati del progetto
-│   └── __init__.py
+├── shared/                         # CORE CONDIVISO (usato da entrambi i mondi)
+│   ├── config/
+│   │   ├── .env                    # API key Polygon + FRED (NON committare)
+│   │   ├── settings.py             # Parametri centralizzati (titoli, path, indicatori)
+│   │   └── __init__.py
+│   └── indicators/
+│       └── calculate.py            # Calcola indicatori tecnici su OHLCV (UNA copia)
 │
-├── data/
+├── data_pipeline/                  # MONDO 1 — costruzione del database (Fase 1)
+│   ├── download_history.py         # [P2] Scarica storico Polygon.io → DuckDB (una tantum)
+│   ├── download_macro.py           # Scarica dati macro FRED → tabella macro
+│   ├── build_dataset.py            # Unisce candles + macro → dataset.parquet
+│   ├── recalculate_indicators.py   # Ricalcola tutti gli indicatori sul DB
+│   ├── verify_quality.py           # [P3] Controllo qualità base
+│   ├── deep_check.py               # [P3] Controllo qualità approfondito
+│   ├── fix_meta.py                 # Pulizia dati META (cambio ticker FB→META)
+│   ├── restore_from_parquet.py     # Ripristino ticker dal parquet (emergenza)
+│   ├── verify_connection.py        # [P1] Verifica API key e accesso Polygon.io
+│   └── install.sh                  # Setup ambiente (venv + dipendenze)
+│
+├── dashboard/                      # MONDO 2 — software di visualizzazione (Plotly/Dash)
+│   ├── app.py                      # Entry point: python dashboard/app.py
+│   ├── indicators/                 # Catalogo indicatori (fonte unica: descrizioni + colonne)
+│   ├── data/                       # Query al database (candele, indicatori, heatmap, settori)
+│   ├── charts/                     # Un file per tipo di grafico + tema
+│   ├── components/                 # Pezzi di interfaccia riutilizzabili
+│   ├── tabs/                       # Le 7 schermate
+│   └── callbacks/                  # Logica interattiva (controlli → grafici)
+│
+├── training/                       # MONDO 3 — addestramento RL (Fase 2)
+│   └── README.md                   # Legge il DB, usa shared/ — in costruzione
+│
+├── data/                           # ARTEFATTI DATI (pesanti, fuori da git)
 │   ├── raw/
-│   │   └── market.duckdb           # Database principale (~759 MB)
+│   │   └── market.duckdb           # Database principale (~1.6 GB)
 │   └── processed/
-│       └── dataset.parquet         # Dataset di training assemblato (~426 MB)
+│       └── dataset.parquet         # Dataset assemblato (~447 MB, anche backup OHLCV)
 │
+├── models/                         # Modelli RL addestrati + memoria pattern (Fase 2)
 ├── logs/                           # Log di download e operazioni
-│
-├── models/                         # Modelli RL addestrati (Fase 3 - vuoto)
-│
-├── notebooks/                      # Jupyter notebook per analisi (vuoto)
-│
-├── scripts/
-│   ├── data/
-│   │   ├── download_history.py     # [P2] Scarica storico Polygon.io → DuckDB (una tantum)
-│   │   ├── download_macro.py       # Scarica dati macro FRED → tabella macro
-│   │   ├── build_dataset.py        # Unisce candles + macro → dataset.parquet
-│   │   ├── verify_quality.py       # [P3] Controllo qualità base
-│   │   ├── deep_check.py           # [P3] Controllo qualità approfondito
-│   │   └── fix_meta.py             # Pulizia dati META (cambio ticker FB→META)
-│   │
-│   ├── indicators/
-│   │   └── calculate.py            # Calcola indicatori tecnici su OHLCV
-│   │
-│   ├── setup/
-│   │   ├── install.sh              # Setup ambiente (venv + dipendenze)
-│   │   └── verify_connection.py    # [P1] Verifica API key e accesso Polygon.io
-│   │
-│   ├── utils/                      # Funzioni condivise (da popolare)
-│   │
-│   └── viz/
-│       └── dashboard.py            # [P4] Dashboard interattiva Plotly/Dash
+├── notebooks/                      # Jupyter notebook per analisi
 │
 ├── Regole/
-│   ├── Documento_Principale/
-│   │   └── AI-Market-Predictor-V4.docx   # Documento di progetto (V4.0)
-│   └── Roadmap delle fasi/
-│       └── AI_MarketPredictor_Fase1_Roadmap.docx  # Roadmap Fase 1
+│   ├── Documento_Principale/       # Documento di progetto V4.0 (.docx + README.md)
+│   └── Roadmap delle fasi/         # Roadmap Fase 1 e Fase 2
 │
 ├── DuckDB.session.sql              # Query SQL per esplorare il DB (SQLTools)
 ├── README.md
+├── readmeIstruzioniAvvio.md        # Guida pratica di avvio
 └── .gitignore                      # Esclude .env, .venv, .duckdb da git
 ```
+
+> **Perché questa divisione?** La pipeline dati e l'addestramento sono lavori diversi, con dipendenze diverse. Ma il calcolo degli indicatori e la lista dei titoli **devono** restare identici tra i due (altrimenti il modello in produzione vedrebbe numeri diversi da quelli su cui ha imparato): per questo stanno in `shared/`, in una copia sola.
 
 ---
 
@@ -106,7 +113,7 @@ ai_market_predictor/
 
 ## Descrizione file per file
 
-### `config/.env`
+### `shared/config/.env`
 Contiene le API key (entrambe gratuite/personali):
 ```
 POLYGON_API_KEY=la_tua_key_polygon
@@ -114,82 +121,94 @@ FRED_API_KEY=la_tua_key_fred
 ```
 **Non committare mai questo file su git.** È già in `.gitignore`.
 
-### `config/settings.py`
+### `shared/config/settings.py`
 Configurazione centralizzata — tutti gli script importano da qui invece di avere valori hardcoded:
 - `POLYGON_API_KEY`, `FRED_API_KEY` — lette da `.env`
 - `TICKERS_BY_SECTOR`, `ALL_TICKERS`, `TICKER_TO_SECTOR` — universo titoli
-- `DB_PATH` — percorso del file DuckDB
+- `DB_PATH`, `PARQUET_PATH` — percorsi degli artefatti dati
 - Parametri candele: `CANDLE_MULTIPLIER = 15`, `HISTORY_YEARS = 5`
 - Parametri indicatori: `RSI_PERIOD`, `EMA_PERIODS`, `MACD_*`, `BB_*`, `ATR_PERIOD`
 
+### `shared/indicators/calculate.py`
+Calcola gli indicatori tecnici su un DataFrame OHLCV con `pandas-ta` + `TA-Lib`. Usato sia da `download_history.py`/`recalculate_indicators.py` (sulle candele 15min) sia dalla dashboard (sulle candele aggregate del timeframe mostrato).
+
+**45 indicatori** in 6 categorie: momentum (RSI, Stocastico, ROC, Williams %R, CCI), trend-direzione (MACD, EMA 20/50/200, Parabolic SAR, Aroon), trend-forza (ADX +DI/−DI), volatilità (Bollinger, ATR, Donchian, Keltner), volume (OBV, MFI, CMF, Force Index), Ichimoku, + **9 pattern candele** (doji, hammer, engulfing, morning/evening star, shooting star, hanging man, harami, inverted hammer).
+
 ---
 
-### `scripts/setup/install.sh`
+### `data_pipeline/install.sh`
 Crea il virtual environment e installa le dipendenze. Da eseguire una volta sola.
 ```bash
-bash scripts/setup/install.sh
+bash data_pipeline/install.sh
 ```
 
-### `scripts/setup/verify_connection.py`  ·  Passo 1
-Verifica che la API key Polygon sia valida e che lo storico a 5 anni sia accessibile, prima di scaricare.
+### `data_pipeline/verify_connection.py`  ·  Passo 1
+Verifica che la API key Polygon sia valida e che lo storico sia accessibile, prima di scaricare.
 ```bash
-python scripts/setup/verify_connection.py
+python data_pipeline/verify_connection.py
 ```
 
----
-
-### `scripts/indicators/calculate.py`
-Calcola gli indicatori tecnici su un DataFrame OHLCV con `pandas-ta`. Usato sia da `download_history.py` (sulle candele 15min) sia dalla dashboard (sulle candele aggregate del timeframe mostrato).
-
-Indicatori: **RSI 14**, **MACD 12/26/9**, **EMA 20/50/200**, **Bollinger Bands 20/2**, **ATR 14**, pattern **doji** (gli altri pattern richiedono TA-Lib, ora placeholder).
-
-### `scripts/data/download_history.py`  ·  Passo 2
+### `data_pipeline/download_history.py`  ·  Passo 2
 **Script principale del download. Eseguito una volta sola** (~8 ore per il rate limit Polygon).
 
 Scarica le candele 15min di 5 anni per i 66 ticker, calcola gli indicatori, salva in DuckDB. Gestisce il rate limit (5 call/min) e supporta ripresa.
 ```bash
-python scripts/data/download_history.py            # download completo
-python scripts/data/download_history.py --resume   # riprende se interrotto
-python scripts/data/download_history.py --ticker AAPL
+python data_pipeline/download_history.py            # download completo
+python data_pipeline/download_history.py --resume   # riprende se interrotto
+python data_pipeline/download_history.py --ticker AAPL
 ```
 Crea le tabelle `candles` e `download_log`.
 
-### `scripts/data/download_macro.py`
+> ⚠️ Il piano Polygon Starter ora serve solo ~2 anni di storico. I 5 anni nel DB sono insostituibili: **non** ri-scaricare ticker già completi.
+
+### `data_pipeline/download_macro.py`
 Scarica 4 serie macroeconomiche da **FRED API** (gratuita) e le salva nella tabella `macro`, allineate su indice giornaliero con forward-fill per i valori mensili. ~30 secondi.
 ```bash
-python scripts/data/download_macro.py
+python data_pipeline/download_macro.py
 ```
 Serie: **VIX** (giornaliero), **Fed Funds Rate** (giornaliero), **CPI** (mensile), **disoccupazione** (mensile).
 
-### `scripts/data/build_dataset.py`
-Unisce `candles` + `macro` per data e produce `data/processed/dataset.parquet`, pronto per il training. Aggiunge la colonna **`return_next`** = rendimento % della candela successiva (il target che il modello RL userà per imparare).
+### `data_pipeline/recalculate_indicators.py`
+Ricalcola **tutti** gli indicatori per tutte le candele del database, da eseguire dopo aver aggiunto/modificato indicatori in `calculate.py`. Aggiunge le colonne mancanti e riscrive ticker per ticker. ~1-2 minuti.
 ```bash
-python scripts/data/build_dataset.py
+python data_pipeline/recalculate_indicators.py
 ```
 
-### `scripts/data/verify_quality.py`  ·  Passo 3
+### `data_pipeline/build_dataset.py`
+Unisce `candles` + `macro` per data e produce `data/processed/dataset.parquet`. Aggiunge la colonna **`return_next`** = rendimento % della candela successiva (target per il modello RL).
+```bash
+python data_pipeline/build_dataset.py
+```
+
+### `data_pipeline/verify_quality.py`  ·  Passo 3
 Controllo qualità **base**: copertura per ticker, gaps nel time series, valori anomali (prezzi ≤0, high<low, RSI fuori range), NaN negli indicatori, verifica su periodi storici noti.
 ```bash
-python scripts/data/verify_quality.py
+python data_pipeline/verify_quality.py
 ```
 
-### `scripts/data/deep_check.py`  ·  Passo 3
-Controllo qualità **approfondito** in 8 categorie: integrità OHLC, salti giornalieri sospetti (split/dati sporchi), spike isolati (fat finger), prezzi congelati, coerenza indicatori, NaN dopo il warmup, sanità tabella macro, outlier di volume.
+### `data_pipeline/deep_check.py`  ·  Passo 3
+Controllo qualità **approfondito** in 8 categorie: integrità OHLC, salti giornalieri sospetti, spike isolati, prezzi congelati, coerenza indicatori, NaN dopo il warmup, sanità tabella macro, outlier di volume.
 ```bash
-python scripts/data/deep_check.py
+python data_pipeline/deep_check.py
 ```
 Risultato attuale: **0 problemi critici**. I salti >20% trovati sono tutti eventi reali (earnings, rally dazi 9 apr 2025, spin-off EXC).
 
-### `scripts/data/fix_meta.py`
+### `data_pipeline/fix_meta.py`
 Pulisce i dati di META: rimuove le candele precedenti al **2022-06-09** e **ricalcola gli indicatori da zero** sulla serie pulita. Vedi sezione "Qualità dati" sotto.
 ```bash
-python scripts/data/fix_meta.py
+python data_pipeline/fix_meta.py
 ```
 
-### `scripts/viz/dashboard.py`  ·  Passo 4
-Dashboard interattiva. Vedi sezione "Dashboard" sotto.
+### `data_pipeline/restore_from_parquet.py`
+Ripristina uno o più ticker nel database a partire da `dataset.parquet` (rete di sicurezza se i dati nel DB vengono persi). Ricalcola gli indicatori sulla serie recuperata.
 ```bash
-python scripts/viz/dashboard.py     # poi apri http://127.0.0.1:8050
+python data_pipeline/restore_from_parquet.py AAPL NVDA
+```
+
+### `dashboard/app.py`  ·  Software di visualizzazione
+Dashboard interattiva modulare. Vedi sezione "Dashboard" sotto e [dashboard/README.md](dashboard/README.md) per l'architettura.
+```bash
+python dashboard/app.py     # poi apri http://127.0.0.1:8050
 ```
 
 ---
@@ -250,15 +269,19 @@ Altra caratteristica nota (non un bug): lo **spin-off di Constellation Energy da
 ## Dashboard
 
 ```bash
-python scripts/viz/dashboard.py
+python dashboard/app.py
 # apri http://127.0.0.1:8050
 ```
+Software modulare (un componente per cartella) — architettura in [dashboard/README.md](dashboard/README.md).
 
-Quattro tab:
+Sette tab:
 
 - **📈 Grafico** — candlestick + volume + RSI + MACD, con EMA e Bollinger sovrapponibili. Selezioni ticker e periodo. Riquadro "ℹ️ Cosa sto guardando?" con la spiegazione di ogni indicatore.
+- **🔬 Azione** — scheda completa di un titolo con *tutti* gli indicatori del DB, componibili (overlay sul prezzo, oscillatori in pannelli, pattern come frecce).
+- **🧭 Indicatori per settore** — lo stesso indicatore confrontato tra tutti i titoli di un settore.
 - **🟩 Heatmap settoriale** — i 66 titoli colorati per performance sul periodo scelto.
 - **📊 Settori nel tempo** — crescita % di ogni settore, ogni linea parte da 0%. Click sulla legenda per isolare un settore.
+- **📚 Indicatori** — glossario: ogni indicatore spiegato (cos'è, come si legge), generato dal catalogo.
 - **💾 Database** — candele e copertura per ogni ticker.
 
 **Timeframe adattivo (performance):** la dashboard aggrega le candele in base al periodo, così disegna sempre poche centinaia di punti invece di milioni. Gli indicatori si ricalcolano sul timeframe mostrato.
@@ -284,14 +307,14 @@ Quattro tab:
 
 ```bash
 # 1. Crea venv e installa dipendenze
-bash scripts/setup/install.sh
+bash data_pipeline/install.sh
 
-# 2. Configura le API key in config/.env
+# 2. Configura le API key in shared/config/.env
 #    POLYGON_API_KEY=...   (https://polygon.io)
 #    FRED_API_KEY=...      (https://fred.stlouisfed.org/docs/api/api_key.html)
 
 # 3. Verifica connessione
-python scripts/setup/verify_connection.py
+python data_pipeline/verify_connection.py
 
 # 4. Il DB storico è già in data/raw/market.duckdb — non riscaricare
 ```
