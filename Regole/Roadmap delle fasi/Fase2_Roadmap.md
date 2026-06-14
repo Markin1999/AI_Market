@@ -2,19 +2,31 @@
 ### Fase 2 — Training: Stadio 1 (Vedere) e Stadio 2 (Associare)
 *Un documento per capire cosa stiamo costruendo, perché, e come ci arriviamo.*
 
-> **Stato: IN CORSO.** La Fase 1 — Fondamenta è completata. Questa è la roadmap della Fase 2.
+> **Stato: IN CORSO.** La Fase 1 — Fondamenta è completata. Le decisioni dello Stadio 1 sono state prese (giugno 2026) e sono scritte anche, in versione operativa, nel [README di `training/`](../../training/README.md). Questo documento è la *storia*: il perché e il come.
 
 ---
 
 ## Prima di tutto: cosa cambia nella Fase 2
 
-Nella Fase 1 abbiamo costruito il mondo. 3.508.587 candele, indicatori calcolati, database pulito, dashboard interattiva. Il bambino ha la scacchiera, i pezzi, e ha visto com'è fatta.
+Nella Fase 1 abbiamo costruito il mondo. 3.508.585 candele, 45 indicatori calcolati su ognuna, database pulito, dashboard per esplorarlo. Il bambino ha la scacchiera, i pezzi, e ha visto com'è fatta.
 
 Nella Fase 2 il bambino comincia a giocare.
 
-Ma non in modo caotico. Segue la stessa progressione naturale di un bambino che impara: prima impara a *vedere* (Stadio 1), poi impara a *collegare quello che vede a quello che succede dopo* (Stadio 2). Non si passa avanti finché il passo corrente non funziona in modo misurabile.
+Ma non in modo caotico. Segue la stessa progressione naturale di un bambino che impara: prima impara a *vedere* (Stadio 1), poi impara a *collegare quello che vede a quello che succede dopo* e a investire (Stadio 2), poi a *capire il contesto dei settori* (Stadio 3). Non si passa avanti finché il passo corrente non funziona in modo misurabile.
 
-Tutto continua a girare in locale, sul Mac — esattamente come la Fase 1. Il server Hetzner entra solo quando il sistema dovrà girare H24 in autonomia, in fasi successive.
+Tutto continua a girare in locale, sul Mac — esattamente come la Fase 1. Il server Hetzner entra solo quando il sistema dovrà girare H24 in autonomia, più avanti.
+
+### I tre stadi, nel linguaggio di tutti i giorni
+
+| Stadio | Nome | Cosa impara |
+|---|---|---|
+| **1** | **Vedere** | Legge tutte le candele di tutti gli anni e costruisce una **libreria di grafici** — un archivio di forme che sa **riconoscere** e **ricostruire**. |
+| **2** | **Associare** | Usa la libreria **+ la lista dei 45 indicatori e dei pattern** per riconoscere le situazioni e **decidere se investire**. Qui arriva la ricompensa. |
+| **3** | **Contestualizzare** | Costruisce i grafici **di settore**, capisce in giornata quale settore va meglio e come i settori si influenzano, per scegliere **dove** investire. |
+
+Questo documento copre in dettaglio lo **Stadio 1** e dà una panoramica dello **Stadio 2**. Lo Stadio 3 (settori) si progetterà quando i primi due saranno solidi.
+
+> **Multi-timeframe (futuro).** L'idea di partire dai dati *al secondo* e costruire grafici da 1 minuto, 15 minuti, ecc. arriva più avanti: serve prima procurarsi i dati al secondo. Per ora lavoriamo con i **15 minuti** che già abbiamo.
 
 ---
 
@@ -24,159 +36,142 @@ Tutto continua a girare in locale, sul Mac — esattamente come la Fase 1. Il se
 
 Insegnare al sistema a riconoscere le **strutture** dei grafici — trend, supporti, pattern ricorrenti — senza ancora fare previsioni e senza ancora ricevere ricompensa. Prima di tutto, bisogna saper guardare.
 
+Lo Stadio 1 produce **due cose**: l'**occhio** (sa leggere qualsiasi grafico e ridurlo a una "firma") e la **libreria di grafici** (l'archivio di forme che riconosce e sa ricostruire).
+
 ### Il parallelo con il bambino
 
-Un neonato all'inizio vede solo macchie sfocate. Col tempo la corteccia visiva si organizza: prima i bordi, poi le forme, poi gli oggetti. Il bambino riconosce una palla *prima* di sapere a cosa serve una palla. Il riconoscimento viene prima del significato.
+Un neonato all'inizio vede solo macchie sfocate. Col tempo la corteccia visiva si organizza: prima i bordi, poi le forme, poi gli oggetti. Il bambino riconosce una palla *prima* di sapere a cosa serve. Il riconoscimento viene prima del significato.
 
-Lo Stadio 1 costruisce la corteccia visiva del sistema per i grafici. Il sistema impara a distinguere "questa è una salita", "questo è un range laterale", "qui c'è una struttura di supporto" — senza ancora sapere se sia un bene o un male per il trading. Quello arriva allo Stadio 2.
+Lo Stadio 1 costruisce la corteccia visiva del sistema per i grafici. Impara a distinguere "questa è una salita", "questo è un laterale", "qui c'è un supporto" — senza ancora sapere se sia un bene o un male per il trading. Quello arriva allo Stadio 2.
 
-### Cosa "vede" il sistema — lo stato
+### Cosa "vede" il sistema — un giorno alla volta
 
-A ogni passo, il sistema non vede tutto il grafico dall'inizio. Vede una **finestra scorrevole** delle ultime N candele — esattamente come un trader che guarda lo schermo vede le ultime ore o i ultimi giorni, non tutta la storia del titolo.
+Il bambino non guarda 5 anni schiacciati in un grafico solo. Guarda un **pezzo alla volta**, come un trader guarda lo schermo: le ultime ore o giorni, poi scorre.
 
-Ogni candela della finestra porta con sé:
-- **OHLC normalizzati** — non i prezzi assoluti (AAPL a $185 vs KO a $60), ma i rendimenti percentuali rispetto alla candela precedente. Una salita del 2% è uguale su qualsiasi titolo.
-- **Volume normalizzato** — volume relativo rispetto alla media del periodo, non assoluto.
-- **Indicatori già calcolati** — RSI, MACD, posizione nelle Bollinger Bands, EMA relativa, ATR. Sono già tutti nel database.
+Pensa a un **libro**: lo leggi una pagina alla volta, ma leggi *tutto* il libro.
 
-> **Perché normalizzare?** Per la stessa ragione per cui riconosciamo una "palla" sia da tennis sia da spiaggia. Una salita del 2% di NVDA e una salita del 2% di KO devono apparire identiche al sistema — conta la forma, non il titolo o il prezzo assoluto.
+- **La finestra = 1 giorno (64 candele)** → la *pagina* che guarda in un colpo d'occhio.
+- **Tutti i 5 anni di tutti i 66 titoli** → il *libro intero* che legge, pagina dopo pagina.
 
-### Come impara senza ricompensa — il VQ-VAE
+Tagliamo tutta la storia in **milioni di finestre da un giorno** (≈ 3,5 milioni in tutto) e gliele facciamo scorrere davanti una dopo l'altra: le vede **tutte**, e le ripassa più volte.
 
-Questo è il punto tecnico centrale dello Stadio 1. Normalmente il Reinforcement Learning usa la ricompensa per imparare. Ma lo Stadio 1 non fa ancora previsioni — quindi non c'è ricompensa. Come impara?
+- **Da quanto impara:** da tutto — ogni candela di ogni anno di ogni titolo diventa una pagina.
+- **Quanto vede in un colpo d'occhio:** un giorno. È solo la dimensione dello sguardo.
 
-Impara cercando di **comprendere la struttura di quello che vede**, usando i dati stessi come maestro. L'architettura scelta si chiama **VQ-VAE** (Vector Quantized Variational Autoencoder). Il nome è tecnico; il meccanismo è semplice:
+> **Perché un giorno?** Perché una *forma* (un trend, un supporto, un breakout) è una cosa locale: succede in ore o giorni, non in 5 anni. 64 candele = un giorno intero di mercato (extended hours inclusi). La finestra si potrà **allargare** (2 giorni, una settimana) se servirà più contesto.
 
-**1. Comprime.** Il sistema riceve una finestra di candele e la "schiaccia" in un piccolo vettore di numeri — la firma matematica di quella struttura. Come riassumere un libro in una sola frase: si perde il dettaglio, ma si cattura l'essenza.
+### Cosa porta ogni candela — la forma + i 45 sensi
 
-**2. Sceglie un codice.** Invece di usare la firma esatta, il sistema sceglie il codice più simile da un dizionario interno chiamato **codebook** — un insieme di forme fondamentali. È come arrotondare la propria frase a una delle frasi più comuni in un vocabolario limitato.
+Ogni candela non è solo 5 numeri (apertura, massimo, minimo, chiusura, volume). Porta con sé anche i suoi **45 indicatori** già calcolati — i suoi "sensi". Quindi una candela ≈ **50 numeri**. Vogliamo che, guardando un giorno, il sistema veda **la forma e tutti i sensi insieme**.
 
-**3. Ricostruisce.** Partendo solo dal codice scelto, il sistema cerca di ricostruire la finestra originale. Se ci riesce bene, vuol dire che il codebook cattura le strutture essenziali del mercato.
+**Il problema: i numeri non sono confrontabili.** RSI sta tra 0 e 100, il MACD è piccolo (±2), l'OBV (volume cumulato) arriva ai milioni, il prezzo è ~$185, i pattern sono 100/0/-100. Se li diamo grezzi, i numeri grandi **schiacciano** i piccoli: l'OBV cancellerebbe l'RSI, e l'occhio vedrebbe solo il volume.
 
-**4. Impara dall'errore.** Dove la ricostruzione è imprecisa, il sistema aggiusta il codebook. Nel tempo, il codebook diventa sempre più preciso — e il sistema ha imparato a vedere le forme.
+**La soluzione — tre mosse:**
 
-Il risultato finale è un **occhio** — un encoder capace di trasformare qualsiasi finestra di candele in una "firma" che ne descrive la struttura. Questo occhio è il pezzo fondamentale che rimane invariato in tutti gli stadi successivi.
+1. **Normalizzare** — riportare ogni dato alla stessa scala (es. tra -1 e +1), così pesano tutti uguale e sono confrontabili. Una salita del 2% di NVDA e una di KO diventano identiche: conta la forma, non il titolo né il prezzo assoluto.
+2. **Raggruppare per famiglia** — momentum, trend, volatilità, volume, Ichimoku.
+3. **I pattern come bandierine** — segnali "acceso/spento" che si accendono nel giorno.
+
+> Li mettiamo **tutti dentro, normalizzati**, e lasciamo che sia il risultato a dire quali contano. Se l'occhio fatica con troppi dati, si parte da un gruppo ridotto e si aggiungono. Il mercato decide, non noi.
+
+### Come impara a vedere — prima ricopiare, poi la libreria
+
+Procediamo a piccoli passi: gattona prima di camminare.
+
+**Passo A — Imparare a ricopiare.** Prima una rete semplice (*autoencoder*) che fa una cosa sola: **guarda una finestra e prova a ridisegnarla**. Comprime il giorno in pochi numeri (la firma) e poi lo ricostruisce. Se ci riesce bene, ha capito la struttura. È facile da controllare e correggere.
+
+**Passo B — Costruire la libreria.** Quando sa ricopiare, aggiungiamo un **dizionario di forme** (il *codebook*): invece di una firma libera, l'occhio sceglie la forma più simile da un archivio di forme tipiche. È il salto da autoencoder a **VQ-VAE** (Vector Quantized Variational Autoencoder). Quell'archivio **è** la libreria di grafici.
+
+In sintesi, il meccanismo del VQ-VAE:
+
+1. **Comprime** la finestra in una firma (riassume un giorno in pochi numeri).
+2. **Sceglie un codice** dal dizionario interno — arrotonda la firma alla forma più simile.
+3. **Ricostruisce** la finestra partendo solo dal codice scelto.
+4. **Impara dall'errore**: dove ricostruisce male, aggiusta il dizionario. Nel tempo le forme diventano precise.
+
+Il risultato è un **occhio** che trasforma qualsiasi giorno di grafico in una firma, e una **libreria** di forme leggibile e arricchibile. L'occhio resta invariato in tutti gli stadi successivi.
 
 ### La memoria dei pattern — la libreria visiva
 
-Il codebook non è solo un componente interno. È la **memoria visiva** del sistema — una libreria di forme che cresce nel tempo.
+Il codebook non è solo un componente interno: è la **memoria visiva** del sistema, una libreria di forme che cresce nel tempo.
 
 ```
 models/pattern_memory/
-  codebook.npy           ← il dizionario interno (scoperto autonomamente)
-  pattern_000.npy        ← forma 0: struttura laterale
+  codebook.npy           ← il dizionario interno (scoperto dai dati)
+  pattern_000.npy        ← forma 0: laterale
   pattern_001.npy        ← forma 1: breakout rialzista
-  pattern_002.npy        ← forma 2: trend ribassista prolungato
+  pattern_002.npy        ← forma 2: trend ribassista
   ...
-  book_testa_spalle.npy  ← aggiunto manualmente da libro di analisi
+  book_testa_spalle.npy  ← aggiunto a mano da un libro di analisi tecnica
   book_doppio_massimo.npy
-  ...
 ```
 
-Ogni pattern è un vettore numerico, ma può essere visualizzato come grafico. Si può aprire la cartella, guardare cosa il sistema ha imparato a "vedere", e — cosa più importante — **aggiungere pattern manualmente**.
+Ogni pattern è un vettore di numeri, ma si può **visualizzare come grafico**. Puoi aprire la cartella, vedere cosa ha imparato il sistema, e **aggiungere pattern dai libri**. Non diventano regole rigide: se nei dati reali quel pattern ha anticipato movimenti, il sistema lo userà; se no, lo ignorerà. Il mercato resta il giudice.
 
-Se si prende un libro di analisi tecnica classica e si estraggono esempi di pattern noti — testa-spalle, doppio massimo, bandiera rialzista, triangolo simmetrico — questi possono essere aggiunti come voci aggiuntive nella memoria. Il sistema non li applica come regole rigide. Li tratta come qualsiasi altro pattern in memoria: se nei dati reali quel pattern ha portato a movimenti significativi, lo userà. Se non ha funzionato, lo ignorerà. Il mercato decide sempre.
+La memoria cresce: pattern scoperti dallo storico (Stadio 1), pattern aggiunti dai libri, pattern rafforzati dalla ricompensa (Stadio 2), nuovi pattern dall'esperienza live.
 
-Questa memoria **cresce con il tempo**:
-- Stadio 1: pattern scoperti autonomamente dai 5 anni di storico
-- Dopo Stadio 1: pattern aggiunti da libri e da conoscenza esterna
-- Stadio 2: i pattern che si dimostrano predittivi vengono rafforzati dalla ricompensa
-- Live: nuovi pattern scoperti dall'esperienza sul mercato reale vengono aggiunti
+### Come sappiamo che "ci vede" davvero — i 3 test
 
-### Come sappiamo che "ci vede" davvero — le metriche dello Stadio 1
+**Test 1 — Ricostruzione su dati mai visti.** Si tengono da parte alcuni mesi che il sistema non ha mai visto. Se riesce a ricopiarli bene, ha imparato strutture *generali*, non li ha memorizzati.
 
-Il documento principale dice: *"Il sistema descrive correttamente la struttura del grafico che sta guardando, in modo stabile e coerente su più titoli diversi."* In pratica lo verifichiamo così:
+**Test 2 — Coerenza tra titoli diversi (il test chiave).** Si mettono le firme di migliaia di finestre su una mappa 2D (t-SNE o UMAP). Se la salita di NVDA finisce **vicino** alla salita di KO — titoli diversissimi, stessa forma — allora vede la *struttura*, non il titolo. Se invece i gruppi sono organizzati per titolo, l'occhio non funziona ancora.
 
-**Test 1 — Ricostruzione su dati mai visti.**
-Si separano prima del training alcuni mesi di dati (out-of-sample) — titoli e periodi che il sistema non ha mai visto durante l'addestramento. Se riesce a ricostruirli bene, ha imparato strutture generalizzabili, non ha memorizzato i dati specifici.
+**Test 3 — Stabilità nel tempo.** Una salita del 2021 e una del 2024 devono finire vicine sulla mappa: il mercato cambia, le forme di fondo restano.
 
-**Test 2 — Coerenza tra titoli diversi (il test chiave).**
-Si prendono le firme (vettori) di migliaia di finestre di titoli diversi e le si proietta su una mappa 2D (con t-SNE o UMAP). Se la salita di NVDA finisce *vicino* alla salita di KO sulla mappa — due titoli completamente diversi, stessa forma — allora il sistema vede la struttura, non memorizza il titolo. Se invece i cluster sono organizzati per titolo invece che per forma, l'occhio non funziona ancora.
-
-**Test 3 — Stabilità nel tempo.**
-Le firme di strutture simili devono rimanere simili anche su periodi diversi. Una salita del 2021 e una salita del 2024 devono finire vicine sulla mappa — il mercato cambia, le strutture fondamentali rimangono.
-
-Quando tutti e tre i test sono soddisfatti in modo stabile, lo Stadio 1 è completato e si passa allo Stadio 2.
+Quando tutti e tre passano in modo stabile, lo Stadio 1 è completo e si passa allo Stadio 2.
 
 ---
 
 ## Stadio 2 — Associare
 
-> Questa sezione è una panoramica di cosa viene dopo lo Stadio 1. Il documento di dettaglio dello Stadio 2 verrà scritto quando lo Stadio 1 sarà completato e verificato — con i dati reali davanti agli occhi, come prescrive la filosofia del progetto.
+> Panoramica di cosa viene dopo. Il documento di dettaglio si scriverà quando lo Stadio 1 sarà completato e verificato — con i dati reali davanti, come prescrive la filosofia.
 
 ### L'obiettivo
 
-Allo Stadio 2, sopra l'occhio già addestrato si aggiunge una **testa decisionale**: una rete che prende la firma del pattern e risponde alla domanda: *"Vista questa struttura, il prezzo salirà o scenderà nelle prossime N candele?"*
+Sopra l'occhio già addestrato si aggiunge una **testa decisionale**: una rete che prende la firma del pattern e risponde a *"Vista questa struttura, il prezzo salirà o scenderà nelle prossime candele?"*
 
-È qui che entra la **ricompensa** — la decisione più delicata di tutto il progetto. Se la previsione era giusta, il sistema riceve un segnale positivo. Se era sbagliata, uno negativo. Nel tempo impara quali pattern sono stati seguiti da rialzi e quali da ribassi, senza che nessuno gliel'abbia detto.
+È qui che entrano **la lista dei 45 indicatori e dei pattern** — per qualificare la situazione — e la **ricompensa**: se la previsione era giusta, segnale positivo; se sbagliata, negativo. Nel tempo il sistema impara quali situazioni sono state seguite da rialzi e quali da ribassi, senza che nessuno gliel'abbia detto.
 
 ### Perché la ricompensa si definisce solo qui
 
-La definizione precisa della ricompensa — quanto movimento, in quante candele, con quale soglia — non viene fissata adesso. Viene definita quando i dati reali sono davanti agli occhi e si può osservare come il sistema risponde.
+La definizione precisa della ricompensa — quanto movimento, in quante candele, con quale soglia — non si fissa adesso. Si definisce quando i dati reali sono davanti e si può osservare come il sistema risponde. Un bambino non nasce con le regole del bene e del male già scritte: le scopre vivendo. Definirla troppo presto rischia di ottimizzare la metrica sbagliata.
 
-Un bambino non nasce con le regole del bene e del male già scritte. Le scopre vivendo. Definire la ricompensa troppo presto, senza i dati, rischia di costruire un sistema che ottimizza la metrica sbagliata. Meglio aspettare.
-
-Quello che sappiamo già è la **soglia minima di successo**: accuracy direzionale superiore al **53% out-of-sample** — tre punti percentuali sopra il lancio di moneta. Non basta funzionare sui dati di training. Deve funzionare su dati che non ha mai visto.
+Quello che sappiamo già è la **soglia minima di successo**: accuracy direzionale **> 53% out-of-sample** — tre punti sopra il lancio di moneta, su dati mai visti.
 
 ### Cosa si mantiene dallo Stadio 1
 
-L'occhio VQ-VAE — l'encoder — rimane invariato. Non si ricomincia da zero: si aggiunge la testa decisionale sopra la stessa base. Le firme dei pattern che l'occhio ha già imparato a calcolare vengono usate direttamente come input per la testa.
+L'occhio (l'encoder) rimane invariato. Non si ricomincia da zero: si aggiunge la testa decisionale sopra la stessa base. Per questo l'ordine è obbligatorio — non si può associare senza prima saper vedere.
 
-Questo è il motivo per cui l'ordine è obbligatorio: non si può associare senza prima saper vedere. E non si può sentire (Stadio 4) senza aver già imparato ad associare e contestualizzare.
+---
+
+## Stadio 3 — Contestualizzare (panoramica)
+
+Dopo che il sistema sa vedere e associare su un singolo titolo, impara a guardare **i settori**: costruisce i grafici di settore, capisce **in giornata quale settore va meglio** e come i movimenti di un settore anticipano o trascinano gli altri (le rotazioni settoriali). Così sa **in che settore** cercare i pattern e investire. Qui rientra l'idea di dare al sistema, accanto al singolo titolo, un **riassunto di settore**. Si progetta dopo lo Stadio 2.
 
 ---
 
 ## La roadmap della Fase 2: i passi concreti
 
-### Passo 1 — Preparare l'ambiente di training
+| # | Passo | Risultato atteso |
+|---|---|---|
+| 1 | **Preparare l'ambiente** — struttura cartelle `training/`, librerie (PyTorch, scikit-learn) | Ambiente pronto e verificato |
+| 2 | **Preparare i dati** — finestre da un giorno, normalizzate, divise in train/validation/test (il test è un periodo *futuro*, mai a caso) | Finestre pronte, suddivisione documentata |
+| 3 | **Occhio — Passo A** — addestrare l'autoencoder a ricopiare le finestre | L'occhio ricostruisce bene; perdita scesa e stabile |
+| 4 | **Occhio — Passo B** — aggiungere il dizionario (codebook) → VQ-VAE | Nasce la libreria; modello salvato in `models/` |
+| 5 | **Verifica** — i 3 test + visualizzare le forme scoperte | Mappa 2D coerente tra titoli, metriche documentate |
+| 6 | **Arricchire** — aggiungere pattern dai libri alla libreria | `models/pattern_memory/` con pattern automatici + manuali |
 
-Creare la struttura di cartelle per la Fase 2, installare le librerie necessarie (PyTorch, scikit-learn per la visualizzazione), e organizzare il codice in modo modulare. L'occhio, la memoria e la testa decisionale saranno componenti separati — così che uno possa essere aggiornato senza buttare via gli altri.
-
-**Risultato atteso**: struttura `scripts/training/` pronta, librerie installate, ambiente verificato.
-
-### Passo 2 — Preparare i dati per il training
-
-Creare il dataset di training nel formato giusto per il VQ-VAE: finestre scorrevoli di N candele, normalizzate, suddivise in training / validation / test set. La separazione temporale è fondamentale: il test set deve essere un periodo futuro rispetto al training — non una selezione casuale.
-
-**Risultato atteso**: file `.pt` (PyTorch tensor) con le finestre pronte, suddivisione train/val/test documentata.
-
-### Passo 3 — Addestrare il VQ-VAE (l'occhio)
-
-Addestrare il modello VQ-VAE sull'intero storico di training. Monitorare la perdita di ricostruzione durante il training. Il processo può richiedere ore sul Mac — è normale.
-
-**Risultato atteso**: modello salvato in `models/`, curva di training documentata, perdita di ricostruzione scesa a un valore stabile.
-
-### Passo 4 — Valutare l'occhio (Test 1, 2 e 3)
-
-Eseguire i tre test descritti nella sezione "Come sappiamo che ci vede davvero":
-- Ricostruzione su dati out-of-sample
-- Mappa 2D delle firme per coerenza tra titoli
-- Stabilità temporale dei pattern
-
-Visualizzare i pattern nel codebook. Valutare cosa ha scoperto il sistema.
-
-**Risultato atteso**: grafici dei pattern scoperti, mappa 2D che mostra coerenza tra titoli, metriche di ricostruzione documentate.
-
-### Passo 5 — Arricchire la memoria con pattern da libri
-
-Guardare i pattern scoperti automaticamente. Identificare quali pattern classici dell'analisi tecnica mancano o sono poco rappresentati. Aggiungere manualmente esempi da libri o risorse esterne.
-
-**Risultato atteso**: cartella `models/pattern_memory/` con pattern automatici + pattern aggiunti manualmente, documentati e visualizzabili.
-
-### Passo 6 — Dichiarare lo Stadio 1 completo e passare allo Stadio 2
-
-Solo quando i tre test di verifica sono soddisfatti in modo stabile e la memoria è ricca e leggibile, lo Stadio 1 viene dichiarato completo. Si scrive un resoconto di cosa il sistema ha imparato, si aggiornano i documenti, e si inizia a progettare lo Stadio 2.
+Struttura delle cartelle e dettagli operativi nel [README di `training/`](../../training/README.md).
 
 ---
 
 ## Cosa cambia rispetto alla Fase 1
 
-| Aspetto | Fase 1 | Fase 2 |
+| Aspetto | Fase 1 | Fase 2 (Stadio 1) |
 |---|---|---|
 | Obiettivo | Costruire il mondo | Insegnare a vedere il mondo |
-| Output | Database + dashboard | Occhio VQ-VAE + memoria pattern |
-| Strumenti nuovi | DuckDB, pandas-ta, Plotly | PyTorch, VQ-VAE, t-SNE/UMAP |
-| Durata stimata | Alcune settimane | Alcune settimane/mesi |
+| Output | Database + dashboard | Occhio VQ-VAE + libreria pattern |
+| Strumenti nuovi | DuckDB, pandas-ta, Plotly | PyTorch, autoencoder/VQ-VAE, t-SNE/UMAP |
 | Come si valuta | Dati corretti? Dashboard funziona? | L'occhio vede strutture coerenti tra titoli diversi? |
 | Ricompensa | Nessuna | Nessuna (arriva allo Stadio 2) |
 
@@ -186,8 +181,8 @@ Solo quando i tre test di verifica sono soddisfatti in modo stabile e la memoria
 
 Un senso alla volta. Un passo alla volta. Si misura prima di aggiungere qualcosa. Si scala solo quando funziona.
 
-Il bambino deve prima imparare a vedere bene prima di poter capire cosa significano le cose che vede. Poi capire cosa significano prima di poter imparare a sentire. La sequenza non è invertibile. La fretta produce sistemi che sembrano funzionare ma non funzionano.
+Il bambino deve prima imparare a vedere bene, prima di poter capire cosa significano le cose che vede. Poi capire cosa significano, prima di imparare a sentire. La sequenza non è invertibile. La fretta produce sistemi che sembrano funzionare ma non funzionano.
 
 ---
 
-*AI Market Predictor · Versione 4.0 · Fase 2 — Roadmap*
+*AI Market Predictor · Versione 4.0 · Fase 2 — Roadmap. Vedi anche [README di training/](../../training/README.md) e [documento principale](../Documento_Principale/README.md).*

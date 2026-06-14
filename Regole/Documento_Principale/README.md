@@ -337,3 +337,31 @@ La **Fase 1 — Fondamenta** è completa. Tutto gira in locale sul Mac, come pre
 **Il prossimo passo definito**: inizio della **Fase 2 — Training**. Costruzione dell'ambiente di Reinforcement Learning e avvio dello **Stadio 1 (Vedere)**. La decisione più delicata — la definizione della ricompensa — verrà presa qui, con i primi dati reali davanti, esattamente come previsto dalla filosofia del progetto.
 
 ---
+
+## 14. Consolidamento prima della Fase 2 — strumenti e struttura (giugno 2026)
+
+> Sessione di consolidamento successiva al completamento della Fase 1. Nessun cambiamento alla filosofia, agli stadi, alla ricompensa o ai criteri di validazione: si è reso il mondo dei dati più ricco e più leggibile, e lo si è organizzato meglio, in preparazione del training. Si registra qui per non doverlo ridiscutere.
+
+### Più sensi — l'espansione degli indicatori
+
+Il sistema è passato dai pochi indicatori iniziali a **45 indicatori + 9 pattern candele** su ogni candela (vedi Sezione 2.3). La ragione è coerente con la filosofia: dare al bambino una percezione più ricca del mercato — momentum, direzione e forza del trend, volatilità, volume, Ichimoku. Non stiamo scrivendo regole: stiamo ampliando il vocabolario sensoriale di partenza. Quali indicatori contino davvero lo deciderà il sistema attraverso la ricompensa, non noi in anticipo. Gli indicatori in eccesso non fanno danno: se non sono predittivi, il modello imparerà a ignorarli.
+
+### Tre mondi separati — una struttura, ruoli distinti
+
+Il progetto è stato diviso in tre parti indipendenti che condividono un unico core (`shared/`: configurazione + calcolo degli indicatori, una copia sola così non divergono mai):
+
+| Mondo            | Cartella         | Ruolo                                             |
+| ---------------- | ---------------- | ------------------------------------------------- |
+| Pipeline dati    | `data_pipeline/` | Scarica da Polygon/FRED e costruisce il database  |
+| Visualizzazione  | `dashboard/`     | Legge il database e mostra grafici e indicatori   |
+| Training         | `training/`      | Legge il database e addestra il modello (Fase 2)  |
+
+La separazione ha una ragione pratica: la Fase 2 ha bisogno **solo del database**, non degli script di download. Tenere i mondi distinti rende ogni parte più semplice da capire e da modificare senza toccare le altre. Ogni mondo ha il proprio README.
+
+### La dashboard come strumento di esplorazione
+
+La dashboard è stata ricostruita da un unico file in un **software modulare** (un componente per cartella) e ampliata con strumenti pensati per *capire i dati prima di addestrare*: la scheda completa di ogni titolo con tutti gli indicatori componibili, il confronto di un indicatore tra i titoli di un settore, e un glossario che spiega cosa misura e come si legge ogni indicatore. È il banco di prova visivo del metodo "guarda i dati con i tuoi occhi": è proprio guardando i grafici che, nella Fase 1, è emerso il problema di META.
+
+**Dove guardare**: la mappa completa delle cartelle è in `readme_Istruzioni_cartelle.md`; il funzionamento della pipeline in `data_pipeline/README.md`; l'architettura della dashboard in `dashboard/README.md`.
+
+---
