@@ -15,10 +15,10 @@ ai_market_predictor/
 ├── shared/              # CORE CONDIVISO — usato da tutti i mondi
 ├── data_pipeline/       # MONDO 1 — scarica da Polygon e costruisce il database
 ├── dashboard/           # MONDO 2 — software di visualizzazione (grafici)
-├── training/            # MONDO 3 — addestramento del modello (Fase 2)
+├── training/            # MONDO 3 — le due IA: occhio (vede) + predittore (prevede)
 │
 ├── data/                # Database e dataset (file pesanti, fuori da GitHub)
-├── models/              # Modelli addestrati (Fase 2, ancora vuoto)
+├── models/              # Modelli addestrati + libreria dei pattern (Fase 2)
 ├── logs/                # Log delle operazioni
 ├── notebooks/           # Jupyter notebook per analisi libere
 │
@@ -106,14 +106,47 @@ La dashboard interattiva (Plotly/Dash). **Legge** il database e mostra grafici a
 
 ---
 
-## 🧠 training/ — addestramento del modello (Mondo 3, Fase 2)
+## 🧠 training/ — le due IA (Mondo 3, Fasi 2 e 3)
 
-Qui vivrà il "bambino" che impara (Reinforcement Learning). **Legge** il database e **usa** `shared/`, ma non scarica nulla da Polygon. In costruzione.
+Il "cervello che impara", separato dalla pipeline dati. Legge il database e usa `shared/`, ma non scarica nulla. Contiene **due IA distinte**, ognuna nella sua cartella, più i pezzi **condivisi**:
 
+```
+training/
+├── config.py        (condiviso: tutti i numeri)
+├── data/            (condiviso: finestre + normalizzazione)
+├── occhio/          IA #1 — VEDERE / crea le forme   (FATTA, Fase 2)
+└── predittore/      IA #2 — PREVEDERE su/giù         (DA FARE, Fase 3)
+```
+
+**Condivisi — usati da entrambe le IA:**
 | File | Cosa fa |
 |---|---|
-| `README.md` | Spiega cosa farà questa cartella, cosa usa (il DB + `shared/`) e cosa produce (i modelli in `models/`). |
-| `__init__.py` | Marker di pacchetto. Non si tocca. |
+| `config.py` | Tutti i numeri in un posto: finestra (64 candele), firma (32), dizionario (256), date di split, lista delle 47 feature. |
+| `data/windows.py` | Legge il DB, **taglia la storia in finestre** da un giorno, divide train/val/test per data. |
+| `data/normalize.py` | Porta forma + indicatori alla **stessa scala** (la "forma" che riceve l'occhio). |
+| `README.md` | La visione d'insieme delle due IA. |
+
+**`occhio/` — IA #1: crea le forme (FATTA, validata):**
+| File | Cosa fa |
+|---|---|
+| `COME_FUNZIONA_LOCCHIO.md` | **Guida tecnica** dell'occhio: ogni funzione, la rete VQ-VAE, epoche, rischi/pro/miglioramenti. |
+| `architecture/encoder.py` | Comprime una finestra in una firma (Conv1d). |
+| `architecture/quantizer.py` | Il **dizionario** (codebook): aggancia la firma alla forma più simile tra 256. |
+| `architecture/decoder.py` | **Ridisegna** la finestra dalla firma. |
+| `architecture/vqvae.py` | Assembla `Autoencoder` (Passo A) e `VQVAE` (Passo B). |
+| `train.py` | Il **ciclo di addestramento**. Log live in `logs/training.log`. |
+| `evaluate.py` | I **3 test** di verifica (ricostruzione, mappa 2D, stabilità). |
+| `pattern_memory.py` | Tira fuori e **disegna la libreria** in `models/pattern_memory/`. |
+| `mostra_finestra.py` · `mostra_ricostruzione.py` | Visualizzazioni HTML (finestra→forma; originale vs copia). |
+
+**`predittore/` — IA #2: prevede su/giù (DA FARE):**
+| File | Cosa fa |
+|---|---|
+| `README.md` | Cosa farà la seconda IA + cosa abbiamo imparato dalla sonda. |
+| `sonda_predittiva.py` | La **sonda diagnostica**: ha misurato che la forma da sola non prevede (≈50%). Log in `logs/probe.log`. |
+| `train_predittore.py` | *(da creare)* il ciclo di addestramento della testa decisionale. |
+
+> Capire l'occhio → [training/occhio/COME_FUNZIONA_LOCCHIO.md](training/occhio/COME_FUNZIONA_LOCCHIO.md) · la seconda IA → [training/predittore/README.md](training/predittore/README.md) · le roadmap → [Fase 2](Regole/Roadmap%20delle%20fasi/Fase2_Roadmap.md) e [Fase 3](Regole/Roadmap%20delle%20fasi/Fase3_Roadmap.md).
 
 ---
 
@@ -126,7 +159,6 @@ I file qui dentro sono troppo grandi per GitHub e sono già in `.gitignore`. Si 
 | File | Cosa fa |
 |---|---|
 | `market.duckdb` | **Il database principale** (~1,74 GB). Contiene tutte le candele e i dati macro. Vedi sotto le 3 tabelle. Non si apre a mano: lo leggono/scrivono gli script. |
-| `market.duckdb.backup_20260610_001816` | Backup del database (~1,72 GB) creato il 10/06/2026. È un backup *post-recupero* — eliminabile quando non serve più. |
 | `.gitkeep` | File vuoto che serve solo a tenere la cartella `raw/` dentro git anche quando il `.duckdb` è escluso. |
 
 ### data/processed/
@@ -146,11 +178,17 @@ I file qui dentro sono troppo grandi per GitHub e sono già in `.gitignore`. Si 
 
 ---
 
-## 🤖 models/ — i modelli addestrati
+## 🤖 models/ — i modelli addestrati e la libreria
+
+Prodotti dal training. I modelli pesanti (`.pt`) sono esclusi da git: si rigenerano con `train.py`.
 
 | File | Cosa fa |
 |---|---|
-| `.gitkeep` | Tiene la cartella in git. Per ora vuota: qui finiranno i modelli RL della Fase 2 e la memoria dei pattern (`pattern_memory/`). I modelli pesanti saranno esclusi da git. |
+| `occhio_autoencoder.pt` | L'occhio del **Passo A** (solo ricopia, senza dizionario). |
+| `occhio_vqvae.pt` | L'occhio del **Passo B** (col dizionario) — il modello principale dello Stadio 1. |
+| `pattern_memory/codebook.npy` | Il **dizionario** salvato: le 256 forme in numeri. |
+| `pattern_memory/libreria.html` | La **libreria visiva**: le forme più frequenti disegnate, da aprire nel browser. |
+| `.gitkeep` | Tiene la cartella in git. |
 
 ---
 
@@ -163,6 +201,7 @@ File di testo con lo storico di cosa hanno fatto gli script. Utili per capire co
 | `download.log` | Log dei download singoli (per ticker). |
 | `download_full.log` | Log del download completo iniziale dello storico. |
 | `macro.log` | Log dello scaricamento dei dati macro FRED. |
+| `training.log` | **Log dell'addestramento** (Fase 2): errore di ricopiatura per epoca e forme del dizionario usate. Si segue dal vivo con `tail -f logs/training.log`. |
 
 ---
 
@@ -200,6 +239,7 @@ Versioni vecchie del documento, tenute per storico:
 | `AI_MarketPredictor_Fase1_Roadmap.docx` | La roadmap originale della Fase 1 (Word). |
 | `README.md` | La versione Markdown e aggiornata della roadmap Fase 1, con tutti i 5 passi segnati come completati. |
 | `Fase2_Roadmap.md` | **La roadmap della Fase 2**: Stadio 1 (Vedere) col VQ-VAE, la memoria dei pattern, i 6 passi concreti, e una panoramica dello Stadio 2. |
+| `Fase3_Roadmap.md` | **La roadmap della Fase 3**: il predittore (Stadio 2 — Associare), cosa abbiamo imparato dalla sonda, e i passi per arrivare a >53% out-of-sample. |
 
 ---
 

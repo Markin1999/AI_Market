@@ -1,8 +1,8 @@
-# training/ — Fase 2: insegnare al bambino a vedere
+# training/ — le due IA: vedere (occhio) e prevedere (predittore)
 
-Questa cartella è il **cervello che impara** (Reinforcement Learning), separato dalla pipeline dati. Qui sotto è scritto, in linguaggio chiaro, **cosa costruiamo, perché e come** — le decisioni prese insieme, così non si perdono.
+Questa cartella è il **cervello che impara**, separato dalla pipeline dati. Contiene **due IA distinte** che condividono `config.py` e `data/`. Qui sotto, in linguaggio chiaro, **cosa costruiamo, perché e come**.
 
-> **Stato:** progettazione dello **Stadio 1 (Vedere)**. Il codice è ancora da scrivere; questo documento è il piano condiviso. La visione completa è nella [roadmap della Fase 2](../Regole/Roadmap%20delle%20fasi/Fase2_Roadmap.md).
+> **Stato:** due IA. L'**occhio** ([occhio/](occhio/)) — Stadio 1, *Vedere* — è **fatto e validato** (3 test passati). Il **predittore** ([predittore/](predittore/)) — Stadio 2, *Prevedere* — è **da costruire** (Fase 3). Questo documento è la **visione**; il **come tecnico** dell'occhio è in **[occhio/COME_FUNZIONA_LOCCHIO.md](occhio/COME_FUNZIONA_LOCCHIO.md)**. Roadmap: [Fase 2](../Regole/Roadmap%20delle%20fasi/Fase2_Roadmap.md) · [Fase 3](../Regole/Roadmap%20delle%20fasi/Fase3_Roadmap.md).
 
 ---
 
@@ -134,27 +134,29 @@ Quando tutti e tre passano in modo stabile, lo Stadio 1 è completo.
 
 ---
 
-## La struttura delle cartelle (da costruire)
+## La struttura delle cartelle
 
-Stesso spirito modulare di `dashboard/`: ogni pezzo separato, così l'occhio, la memoria e (poi) la testa decisionale si aggiornano senza buttare via il resto.
+Due IA separate, con i pezzi **condivisi** sopra. Ogni componente è isolato, così si aggiorna senza buttare via il resto.
 
 ```
 training/
-├── README.md            # questo file
-├── config.py            # tutti i numeri in un posto (finestra=64, dimensioni firma, learning rate)
+├── README.md            # questo file (visione d'insieme)
+├── config.py            # CONDIVISO — tutti i numeri (finestra=64, firma=32, dizionario=256...)
+├── data/                # CONDIVISO — preparazione dati
+│   ├── windows.py       #   taglia la storia in finestre da un giorno (scorrevoli)
+│   └── normalize.py     #   porta forma + indicatori alla stessa scala
 │
-├── data/                # PREPARAZIONE DEI DATI
-│   ├── windows.py       # taglia la storia in finestre da un giorno (scorrevoli)
-│   └── normalize.py     # porta forma + 45 indicatori alla stessa scala
+├── occhio/              # IA #1 — VEDERE (fatta, validata)
+│   ├── COME_FUNZIONA_LOCCHIO.md  # la guida tecnica dell'occhio
+│   ├── architecture/    #   encoder, decoder, quantizer (dizionario), vqvae
+│   ├── train.py         #   addestra l'occhio (log in logs/training.log)
+│   ├── evaluate.py      #   i 3 test (ricostruzione, mappa 2D, stabilità)
+│   ├── pattern_memory.py #  disegna la libreria in models/pattern_memory/
+│   └── mostra_*.py      #   visualizzazioni (finestra→forma, originale vs copia)
 │
-├── architecture/        # LA RETE
-│   ├── encoder.py       # l'occhio: comprime la finestra in una firma
-│   ├── decoder.py       # ricostruisce/ridisegna la finestra dalla firma
-│   └── vqvae.py         # encoder + decoder + dizionario (codebook) — il passo B
-│
-├── train.py             # il ciclo di addestramento
-├── evaluate.py          # i 3 test (ricostruzione, mappa 2D, stabilità nel tempo)
-└── pattern_memory.py    # legge / scrive / visualizza la libreria in models/pattern_memory/
+└── predittore/          # IA #2 — PREVEDERE (da costruire, Fase 3)
+    ├── README.md        #   cosa farà + la lezione della sonda
+    └── sonda_predittiva.py  # la sonda: forma da sola ≈ 50% (baseline da battere)
 ```
 
 I **modelli addestrati** e la **libreria** vanno in `models/` (alla root): qui dentro c'è solo il **codice**.
@@ -197,10 +199,10 @@ Dettaglio narrativo completo nella [roadmap della Fase 2](../Regole/Roadmap%20de
 
 ## Stato e prossimo passo
 
-**Stato:** decisioni dello Stadio 1 prese e scritte (questo documento). Codice: da iniziare.
+**Stato:** **Stadio 1 (occhio) completato e validato** — i 3 test sono passati (ricostruzione out-of-sample, coerenza tra titoli, stabilità nel tempo). L'occhio + la libreria sono in `models/`. Dettaglio tecnico e risultati in [occhio/COME_FUNZIONA_LOCCHIO.md](occhio/COME_FUNZIONA_LOCCHIO.md).
 
-**Prossimo passo:** il *Passo 1* — preparare l'ambiente e la struttura delle cartelle qui sopra, e installare PyTorch. Poi i dati (Passo 2).
+**Prossimo passo:** la **Fase 3** — il **predittore** ([predittore/](predittore/)): la testa che, da firma + indicatori, prevede su/giù. La sonda ha già fissato il baseline (forma da sola ≈ 50%, da battere). Vedi [roadmap Fase 3](../Regole/Roadmap%20delle%20fasi/Fase3_Roadmap.md).
 
 ---
 
-*AI Market Predictor · Fase 2 · Stadio 1 — Vedere. Vedi anche [roadmap Fase 2](../Regole/Roadmap%20delle%20fasi/Fase2_Roadmap.md) e [documento principale](../Regole/Documento_Principale/README.md).*
+*AI Market Predictor · training · Stadio 1 (occhio) fatto · Stadio 2 (predittore) in arrivo. Vedi [roadmap Fase 2](../Regole/Roadmap%20delle%20fasi/Fase2_Roadmap.md), [roadmap Fase 3](../Regole/Roadmap%20delle%20fasi/Fase3_Roadmap.md) e [documento principale](../Regole/Documento_Principale/README.md).*
